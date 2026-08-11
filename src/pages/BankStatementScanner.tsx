@@ -42,17 +42,23 @@ export const BankStatementScanner = () => {
   const fetchModels = async () => {
     try {
       const availableModels = await getAvailableModels();
-      setModels(availableModels);
-      setModelsError(null);
-      const savedModel = localStorage.getItem('nexus_selected_model');
-      if (savedModel && availableModels.includes(savedModel)) {
-        setSelectedModel(savedModel);
-      } else if (availableModels.length > 0) {
-        setSelectedModel(availableModels[0]);
+      if (availableModels.length === 0) {
+        setModelsError('No models found. Please ensure Ollama is running and you have downloaded a model (e.g. ollama run llama3).');
+        setModels([]);
+      } else {
+        setModels(availableModels);
+        setModelsError(null);
+        const savedModel = localStorage.getItem('nexus_selected_model');
+        if (savedModel && availableModels.includes(savedModel)) {
+          setSelectedModel(savedModel);
+        } else {
+          setSelectedModel(availableModels[0]);
+        }
       }
     } catch (err: any) {
       console.error(err);
       setModelsError('Server unreachable. Could not load models.');
+      setModels([]);
     }
   };
 
@@ -178,9 +184,39 @@ export const BankStatementScanner = () => {
 
           <div className="mt-8 pt-8 border-t border-slate-700/50">
             {!loading && extractionTime !== null && (
-              <div className="mb-6 flex items-center space-x-3 text-emerald-400 bg-emerald-500/10 px-4 py-3 rounded-xl border border-emerald-500/20 text-sm shadow-sm">
-                <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                <span>Extraction completed in <strong>{extractionTime}s</strong>. Found <strong>{currentStatement?.transactions.length || 0}</strong> transactions.</span>
+              <div className="mb-6 flex items-center justify-between text-emerald-400 bg-emerald-500/10 px-4 py-3 rounded-xl border border-emerald-500/20 text-sm shadow-sm">
+                <div className="flex items-center space-x-3">
+                  <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  <span>Extraction completed in <strong>{extractionTime}s</strong>. Found <strong>{currentStatement?.transactions.length || 0}</strong> transactions.</span>
+                </div>
+                {currentStatement && currentStatement.transactions.length > 0 && (
+                  <button 
+                    onClick={() => {
+                      const headers = ['Serial No', 'Date', 'Description', 'Withdrawal', 'Deposit', 'Balance'];
+                      const csvRows = [headers.join(',')];
+                      
+                      currentStatement.transactions.forEach(tx => {
+                        const escapedDesc = `"${(tx.description || '').replace(/"/g, '""')}"`;
+                        csvRows.push(`${tx.serialNo},${tx.date},${escapedDesc},${tx.withdrawal},${tx.deposit},${tx.balance}`);
+                      });
+                      
+                      const csvString = csvRows.join('\n');
+                      const blob = new Blob([csvString], { type: 'text/csv' });
+                      const url = window.URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.setAttribute('hidden', '');
+                      a.setAttribute('href', url);
+                      a.setAttribute('download', 'bank_statement.csv');
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                    }}
+                    className="flex items-center px-3 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 rounded-lg transition-colors border border-emerald-500/30 font-medium"
+                  >
+                    <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                    Export to Excel
+                  </button>
+                )}
               </div>
             )}
 

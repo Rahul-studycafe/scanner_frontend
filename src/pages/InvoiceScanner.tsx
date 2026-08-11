@@ -103,17 +103,23 @@ export const InvoiceScanner = () => {
   const fetchModels = async () => {
     try {
       const availableModels = await getAvailableModels();
-      setModels(availableModels);
-      setModelsError(null);
-      const savedModel = localStorage.getItem('nexus_selected_model');
-      if (savedModel && availableModels.includes(savedModel)) {
-        setSelectedModel(savedModel);
-      } else if (availableModels.length > 0) {
-        setSelectedModel(availableModels[0]);
+      if (availableModels.length === 0) {
+        setModelsError('No models found. Please ensure Ollama is running and you have downloaded a model.');
+        setModels([]);
+      } else {
+        setModels(availableModels);
+        setModelsError(null);
+        const savedModel = localStorage.getItem('nexus_selected_model');
+        if (savedModel && availableModels.includes(savedModel)) {
+          setSelectedModel(savedModel);
+        } else {
+          setSelectedModel(availableModels[0]);
+        }
       }
     } catch (err: any) {
       console.error(err);
       setModelsError('Server unreachable. Could not load models.');
+      setModels([]);
     }
   };
 
